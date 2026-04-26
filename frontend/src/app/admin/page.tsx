@@ -34,6 +34,8 @@ export default function AdminPanel() {
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [modalConfig, setModalConfig] = useState<any>({ isOpen: false, type: '', mode: '', id: null });
+    const [formData, setFormData] = useState<any>({});
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://localhost:7249/api";
 
@@ -101,11 +103,47 @@ export default function AdminPanel() {
     };
 
     const handleEdit = (type: string, id: number) => {
-        alert(`Edit modal for ${type} #${id} would open here!`);
+        let item: any = {};
+        if (type === 'users') item = users.find(u => u.id === id);
+        if (type === 'properties') item = properties.find(p => p.id === id);
+        if (type === 'bookings') item = bookings.find(b => b.id === id);
+        setFormData(item || {});
+        setModalConfig({ isOpen: true, type, mode: 'edit', id });
     };
 
     const handleCreate = (type: string) => {
-        alert(`Create modal for new ${type} would open here!`);
+        setFormData({});
+        setModalConfig({ isOpen: true, type, mode: 'create', id: null });
+    };
+
+    const handleModalSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const token = localStorage.getItem("token");
+        try {
+            const config = { headers: { Authorization: `Bearer ${token}` } };
+            if (modalConfig.type === 'properties') {
+                if (modalConfig.mode === 'create') {
+                    await axios.post(`${API_URL}/Property`, formData, config);
+                } else {
+                    await axios.put(`${API_URL}/Property/${modalConfig.id}`, formData, config);
+                }
+            } else if (modalConfig.type === 'bookings') {
+                if (modalConfig.mode === 'create') {
+                    await axios.post(`${API_URL}/Booking`, formData, config);
+                } else {
+                    await axios.put(`${API_URL}/Booking/${modalConfig.id}`, formData, config);
+                }
+            } else if (modalConfig.type === 'users') {
+                alert("User creation/editing not implemented yet");
+                return;
+            }
+            alert(`${modalConfig.type} saved successfully!`);
+            setModalConfig({ isOpen: false, type: '', mode: '', id: null });
+            fetchAdminData();
+        } catch (err) {
+            console.error(err);
+            alert(`Failed to save ${modalConfig.type}`);
+        }
     };
 
     const handleUpdateBookingStatus = async (id: number, action: 'approve' | 'reject') => {
@@ -298,6 +336,39 @@ export default function AdminPanel() {
                     )}
                 </main>
             </div>
+
+            {/* Modal */}
+            {modalConfig.isOpen && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                    <div className="glass-card" style={{ padding: '2rem', width: '400px', maxWidth: '90%' }}>
+                        <h3 style={{ marginBottom: '1rem', fontSize: '1.5rem', fontWeight: 'bold' }}>{modalConfig.mode === 'create' ? 'Create' : 'Edit'} {modalConfig.type}</h3>
+                        <form onSubmit={handleModalSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {modalConfig.type === 'properties' && (
+                                <>
+                                    <input placeholder="Title" value={formData.title || ''} onChange={e => setFormData({...formData, title: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--card-border)', background: 'var(--background)', color: 'var(--foreground)' }} required />
+                                    <input placeholder="Description" value={formData.description || ''} onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--card-border)', background: 'var(--background)', color: 'var(--foreground)' }} required />
+                                    <input placeholder="Address" value={formData.address || ''} onChange={e => setFormData({...formData, address: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--card-border)', background: 'var(--background)', color: 'var(--foreground)' }} required />
+                                    <input type="number" placeholder="Price" value={formData.price || ''} onChange={e => setFormData({...formData, price: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--card-border)', background: 'var(--background)', color: 'var(--foreground)' }} required />
+                                    <input placeholder="Property Type" value={formData.propertyType || ''} onChange={e => setFormData({...formData, propertyType: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--card-border)', background: 'var(--background)', color: 'var(--foreground)' }} required />
+                                    <input type="number" placeholder="Bedrooms" value={formData.bedrooms || ''} onChange={e => setFormData({...formData, bedrooms: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--card-border)', background: 'var(--background)', color: 'var(--foreground)' }} required />
+                                    <input type="number" placeholder="Bathrooms" value={formData.bathrooms || ''} onChange={e => setFormData({...formData, bathrooms: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--card-border)', background: 'var(--background)', color: 'var(--foreground)' }} required />
+                                </>
+                            )}
+                            {modalConfig.type === 'bookings' && (
+                                <>
+                                    <input type="number" placeholder="Property ID" value={formData.propertyId || ''} onChange={e => setFormData({...formData, propertyId: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--card-border)', background: 'var(--background)', color: 'var(--foreground)' }} required />
+                                    <input type="date" placeholder="Start Date" value={formData.startDate ? formData.startDate.split('T')[0] : ''} onChange={e => setFormData({...formData, startDate: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--card-border)', background: 'var(--background)', color: 'var(--foreground)' }} required />
+                                    <input type="date" placeholder="End Date" value={formData.endDate ? formData.endDate.split('T')[0] : ''} onChange={e => setFormData({...formData, endDate: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--card-border)', background: 'var(--background)', color: 'var(--foreground)' }} required />
+                                </>
+                            )}
+                            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                                <button type="submit" className="btn-primary" style={{ padding: '0.5rem 1rem', borderRadius: '20px', flex: 1, border: 'none', fontWeight: 'bold' }}>Save</button>
+                                <button type="button" onClick={() => setModalConfig({ isOpen: false, type: '', mode: '', id: null })} style={{ padding: '0.5rem 1rem', borderRadius: '20px', background: 'var(--card-border)', color: 'var(--foreground)', border: 'none', flex: 1, cursor: 'pointer', fontWeight: 'bold' }}>Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
