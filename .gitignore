@@ -1,0 +1,18 @@
+# Node / frontend
+node_modules/
+.next/
+out/
+build/
+.env*.local
+
+# Visual Studio / backend
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Environment files
+.env
